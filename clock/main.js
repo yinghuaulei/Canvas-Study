@@ -6,9 +6,9 @@ function clock() {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    ctx.clearRect(0, 0, 600, 600);
-
     ctx.save();
+
+    ctx.clearRect(0, 0, 600, 600);
     ctx.translate(300, 300);
 
     ctx.save();
@@ -20,8 +20,6 @@ function clock() {
 
     ctx.rotate(Math.PI * 2 - Math.PI / 2);
 
-    ctx.save();
-    ctx.strokeStyle = '#333';
     for (let i = 0; i < 60; i++) {
         ctx.save();
         ctx.rotate(((Math.PI * 2) / 60) * i);
@@ -39,7 +37,6 @@ function clock() {
         }
         ctx.restore();
     }
-    ctx.restore();
 
     let date = new Date();
     const h = date.getHours();
