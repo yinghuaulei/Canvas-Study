@@ -26,8 +26,6 @@ $(() => {
 
     for (let i = 0; i < 10; i++) {
         let r = 30;
-        let x = Math.random() * (innerWidth - r * 2) + r;
-        let y = Math.random() * (innerHeight - r * 2) + r;
         a.push(new ob(
             innerWidth / 2,
             innerHeight / 2,
@@ -52,8 +50,6 @@ function resize() {
     canvas.width = innerWidth;
     for (let i = 0; i < 101; i++) {
         let r = 30;
-        let x = Math.random() * (innerWidth - r * 2) + r;
-        let y = Math.random() * (innerHeight - r * 2) + r;
         a[i] = new ob(
             innerWidth / 2,
             innerHeight / 2,
@@ -97,7 +93,7 @@ function ob(x, y, r, cc, o, s) {
 function anim() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    a.forEach((e, i) => {
+    a.forEach((e) => {
         e.dr();
     });
     requestAnimationFrame(anim);
