@@ -25,9 +25,8 @@ $(() => {
     ctx = canvas.getContext('2d');
 
     for (let i = 0; i < 10; i++) {
-        let r = 30;
         a.push(new ob(
-            innerWidth / 2,
+        innerWidth / 2,
             innerHeight / 2,
             5,
             gc(),
@@ -49,9 +48,8 @@ function resize() {
     canvas.height = innerHeight;
     canvas.width = innerWidth;
     for (let i = 0; i < 101; i++) {
-        let r = 30;
         a[i] = new ob(
-            innerWidth / 2,
+        innerWidth / 2,
             innerHeight / 2,
             4,
             gc(),
