@@ -1,6 +1,6 @@
 $(() => {
     let img = new Image();
-    img.src = 'panorama.jpg';
+    img.src = '../image/demoImage.jpg';
 
     let canvasXSize = 500;
     let canvasYSize = 500;
