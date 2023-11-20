@@ -16,3 +16,7 @@ canvas {
 #cc_game {
     z-index: 2;
 }
+
+#cc_ui {
+    z-index: 3;
+}

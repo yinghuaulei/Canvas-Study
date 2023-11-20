@@ -16,14 +16,72 @@ const CONST_OBJ = {
     }
 }
 
+const colCount = 9;
+const lineCount = 8;
+
+// chess piece list.
+let chessPieceList;
+let actor = "R";
 let animation;
+let inAnimation;
 let canPlaced = [];
 let confirmPlaced;
 let ccGameCtx;
+let deadPieceList = [];
+let isCheckmate = false;
+let gameOver = false;
+
+let ccUiCtx;
+let ccUiAnimation;
+let uiStartY, uiText, uiTimeOut;
+
+function reStart() {
+    deadPieceList = [];
+    isCheckmate = false;
+    gameOver = false;
+    chessPieceList = [];
+    for (let i = 0; i < initChessPieceList.length; i++) {
+        chessPieceList.push(JSON.parse(JSON.stringify(initChessPieceList[i])));
+    }
+
+    for (let i = 0; i <chessPieceList.length; i++) {
+        let ele = chessPieceList[i];
+        ele.click = (c) => {
+            drawChessPieceList(c, chessPieceList);
+
+            let activeEle = chessPieceList.find(e => e.active === true && e.name !== ele.name);
+            if (activeEle) {
+                activeEle.active = false;
+            }
+
+            if (!ele.active) {
+                getCanPlaced(ele);
+                for (let j = 0; j < canPlaced.length; j++) {
+                    c.save();
+                    c.beginPath();
+                    c.fillStyle = 'rgba(83,222,248,0.9)';
+                    c.arc(canPlaced[j].x, canPlaced[j].y, 7, 0, Math.PI * 2);
+                    c.fill();
+                    c.restore();
+                }
+            }
+            ele.active = !ele.active;
+        }
+        ele.draw = (c) => {
+            drawChessPiece(c, ele);
+        }
+    }
+
+    drawChessPieceList(ccGameCtx, chessPieceList);
+
+    actor = "R";
+    $("#cc_actor").text(actor === "R" ? "红棋" : "黑棋");
+}
 
 $(() => {
     const ccBackgroundCanvas = document.getElementById("cc_background");
     const ccBKCtx = ccBackgroundCanvas.getContext("2d");
+
 
     drawCheckerboard(ccBKCtx, ccBackgroundCanvas.width, ccBackgroundCanvas.height);
 
@@ -31,18 +89,24 @@ $(() => {
     ccGameCtx = ccGameCanvas.getContext("2d");
     ccGameCtx.translate(CONST_OBJ.bx, CONST_OBJ.by);
 
-    drawChessPieceList(ccGameCtx, chessPieceList);
+    reStart();
+
+    const ccUiCanvas = document.getElementById("cc_ui");
+    ccUiCtx = ccUiCanvas.getContext("2d");
+    ccUiCtx.translate(CONST_OBJ.bx, CONST_OBJ.by);
 
     window.addEventListener("click", (e) => {
-        let x = e.offsetX - CONST_OBJ.bx;
-        let y = e.offsetY - CONST_OBJ.by
-        const element = chessPieceList.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
-        if (element && element.click) element.click(ccGameCtx);
+        if (!inAnimation) {
+            let x = e.offsetX - CONST_OBJ.bx;
+            let y = e.offsetY - CONST_OBJ.by
+            const element = chessPieceList.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
+            if (element && element.click && element.factions === actor) element.click(ccGameCtx);
 
-        confirmPlaced = canPlaced.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
-        if (confirmPlaced) {
-            canPlaced = [];
-            animation = window.requestAnimationFrame(offsetChessPiece);
+            confirmPlaced = canPlaced.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
+            if (confirmPlaced) {
+                animation = window.requestAnimationFrame(offsetChessPiece);
+                inAnimation = true;
+            }
         }
     });
 });
@@ -53,6 +117,7 @@ $(() => {
  * @param list
  */
 function drawChessPieceList(c, list) {
+    canPlaced = [];
     c.clearRect(-30, -30, 460, 560);
     for (let i = 0; i < list.length; i++) {
         if (list[i].draw) {
@@ -71,15 +136,13 @@ function drawCheckerboard(c, canvasWidth, canvasHeight) {
     c.save();
     c.translate(CONST_OBJ.bx, CONST_OBJ.by);
 
-    let colCount = 9;
-    let lineCount = 8;
     CONST_OBJ.cs = CONST_OBJ.bh / colCount;
     CONST_OBJ.ls = CONST_OBJ.bw / lineCount;
 
     // set initial coordinate.
     for (let i = 0; i < (lineCount + 1); i++) {
         for (let j = 0; j < (colCount + 1); j++) {
-            let obj = chessPieceList.find(chessPiece => chessPiece.unitX === i && chessPiece.unitY === j);
+            let obj = initChessPieceList.find(chessPiece => chessPiece.unitX === i && chessPiece.unitY === j);
             if (obj) {
                 obj.x = CONST_OBJ.ls * i;
                 obj.y = CONST_OBJ.cs * j;
@@ -163,19 +226,19 @@ function drawCheckerboard(c, canvasWidth, canvasHeight) {
         }
 
         c.beginPath();
-        c.moveTo(0, CONST_OBJ.bh / 9 * i);
-        c.lineTo(CONST_OBJ.bw, CONST_OBJ.bh / 9 * i);
+        c.moveTo(0, CONST_OBJ.bh / colCount * i);
+        c.lineTo(CONST_OBJ.bw, CONST_OBJ.bh / colCount * i);
         c.stroke();
     }
     for (let i = 0; i < lineCount; i++) {
         c.beginPath();
-        c.moveTo(CONST_OBJ.bw / 8 * i, 0);
-        c.lineTo(CONST_OBJ.bw / 8 * i, CONST_OBJ.cs3());
+        c.moveTo(CONST_OBJ.bw / lineCount * i, 0);
+        c.lineTo(CONST_OBJ.bw / lineCount * i, CONST_OBJ.cs3());
         c.stroke();
 
         c.beginPath();
-        c.moveTo(CONST_OBJ.bw / 8 * i, CONST_OBJ.cs4());
-        c.lineTo(CONST_OBJ.bw / 8 * i, CONST_OBJ.bh);
+        c.moveTo(CONST_OBJ.bw / lineCount * i, CONST_OBJ.cs4());
+        c.lineTo(CONST_OBJ.bw / lineCount * i, CONST_OBJ.bh);
         c.stroke();
     }
 
@@ -337,7 +400,79 @@ function offsetChessPiece() {
             ocp.active = false;
             window.cancelAnimationFrame(animation);
             animation = null;
+            inAnimation = false;
+
+            let deadPiece = chessPieceList.find(e => e.name !== ocp.name && e.x === ocp.x && e.y === ocp.y);
+            if (deadPiece) {
+                if (deadPiece.type === "H") {
+                    uiText = deadPiece.factions === "R" ? "黑棋胜" : "红棋胜";
+                    gameOver = true;
+                } else {
+                    deadPieceList.push(deadPiece);
+                    chessPieceList = chessPieceList.filter(e => e.name !== deadPiece.name);
+
+                    uiText = "吃";
+                }
+            }
+
+            if (!gameOver) {
+                checkmate();
+                actor = actor !== "R" ? "R" : "B";
+                $("#cc_actor").text(actor === "R" ? "红棋" : "黑棋");
+            }
+
+            if (uiText) {
+                uiStartY = CONST_OBJ.bh / 2 + 20;
+                ccUiAnimation = window.requestAnimationFrame(drawAFX);
+            }
         }
+    }
+}
+
+function checkmate() {
+    let enemyGeneral = chessPieceList.find(e => e.factions !== actor && e.type === "H");
+    if (!enemyGeneral)
+        return;
+
+    let usPiece = chessPieceList.filter(e => e.factions === actor);
+    for (let i = 0; i < usPiece.length; i++) {
+        canPlaced = [];
+        getCanPlaced(usPiece[i]);
+        let check = canPlaced.find(e => e.x === enemyGeneral.x && e.y === enemyGeneral.y);
+        if (check) {
+            uiText = "将军";
+            isCheckmate = true;
+            break;
+        }
+    }
+}
+
+function drawAFX() {
+    clearTimeout(uiTimeOut);
+    if (uiStartY <= CONST_OBJ.bh / 2) {
+        uiStartY = CONST_OBJ.bh / 2;
+        window.cancelAnimationFrame(ccUiAnimation);
+        uiTimeOut = setTimeout(() => {
+            uiText = "";
+            ccUiCtx.clearRect(0, 0, CONST_OBJ.bw, CONST_OBJ.bh);
+        }, 1000);
+    } else {
+        uiStartY -= 2;
+
+        ccUiCtx.clearRect(0, 0, CONST_OBJ.bw, CONST_OBJ.bh);
+        ccUiCtx.save();
+        ccUiCtx.translate(CONST_OBJ.bw / 2, uiStartY);
+        ccUiCtx.font = "96px 华文隶书";
+        ccUiCtx.fillStyle = "rgba(255, 0, 0, 0.8)";
+        ccUiCtx.textAlign = "center";
+        ccUiCtx.textBaseline = "middle";
+        ccUiCtx.shadowOffsetX = 3;
+        ccUiCtx.shadowOffsetY = 3;
+        ccUiCtx.shadowColor = 'rgb(0,0,0)';
+        ccUiCtx.strokeText(uiText, 0, 0);
+        ccUiCtx.fillText(uiText, 0, 0);
+        ccUiCtx.restore();
+        window.requestAnimationFrame(drawAFX);
     }
 }
 
@@ -371,7 +506,14 @@ const drawChessPiece = (c, self) => {
     c.restore();
 }
 
-function drawCanPlaced(c, self) {
+
+const findCPByXY = (x, y) => {
+    return chessPieceList.find(ele => ele.x === x && ele.y === y);
+}
+
+
+
+function getCanPlaced(self) {
     let arr;
     switch (self.type) {
         case "J":
@@ -389,20 +531,23 @@ function drawCanPlaced(c, self) {
             }
 
             for (let i = 0; i < arr.length; i++) {
-                drawJHPZ(c, self, self.x, self.y, arr[i]);
+                getJHPZ(self, self.x, self.y, arr[i]);
+                if (self.type === "P") {
+                    self.hasJump = false;
+                }
             }
             break;
         case "M":
             arr = ["halfLeftTop", "halfLeftDown", "halfRightTop", "halfRightDown", "halfTopLeft", "halfDownLeft", "halfTopRight", "halfDownRight"];
             for (let i = 0; i < arr.length; i++) {
-                drawM(c, self, self.x, self.y, arr[i]);
+                getM(self, self.x, self.y, arr[i]);
             }
             break;
         case "X":
         case "S":
             arr = ["leftTop", "leftDown", "rightTop", "rightDown"];
             for (let i = 0; i < arr.length; i++) {
-                drawXS(c, self, self.x, self.y, arr[i], self.type === "X" ? 2 : 1);
+                getXS(self, self.x, self.y, arr[i], self.type === "X" ? 2 : 1);
             }
             break;
         default:
@@ -410,7 +555,7 @@ function drawCanPlaced(c, self) {
     }
 }
 
-function drawJHPZ(c, self, x, y, direction) {
+function getJHPZ(self, x, y, direction) {
     let offsetX = x, offsetY = y;
     switch (direction) {
         case "top":
@@ -436,16 +581,16 @@ function drawJHPZ(c, self, x, y, direction) {
             || (self.factions === "R" && offsetY < CONST_OBJ.cs4() && offsetX >= 0 && offsetX <= CONST_OBJ.bw)) || offsetX === self.x));
 
     if (condition) {
-        if (drawCanPlacedTag(c, {x: offsetX, y: offsetY}, self, direction)) {
+        if (get({x: offsetX, y: offsetY}, self, direction)) {
             // J & P need to step up
             if (self.type === "J" || self.type === "P") {
-                drawJHPZ(c, self, offsetX, offsetY, direction);
+                getJHPZ(self, offsetX, offsetY, direction);
             }
         }
     }
 }
 
-function drawM(c, self, x, y, direction) {
+function getM(self, x, y, direction) {
     let offsetX, offsetY, palisadeX = x, palisadeY = y;
     switch (direction) {
         case "halfLeftTop":
@@ -491,7 +636,7 @@ function drawM(c, self, x, y, direction) {
     }
 
     if (offsetX >= 0 && offsetX <= CONST_OBJ.bw && offsetY >= 0 && offsetY <= CONST_OBJ.bh) {
-        drawCanPlacedTag(c, {
+        get({
             x: offsetX, y: offsetY
         }, self, direction, {
             x: palisadeX, y: palisadeY
@@ -499,7 +644,7 @@ function drawM(c, self, x, y, direction) {
     }
 }
 
-function drawXS(c, self, x, y, direction, cell) {
+function getXS(self, x, y, direction, cell) {
     let offsetX = x, offsetY = y, palisadeX = x, palisadeY = y;
     if (direction === "leftTop") {
         offsetX -= (CONST_OBJ.ls * cell);
@@ -534,7 +679,7 @@ function drawXS(c, self, x, y, direction, cell) {
     if (cell === 2) {
         if (offsetX >= 0 && offsetX <= CONST_OBJ.bw) {
             if ((self.factions === "B" && offsetY >= 0 && offsetY <= CONST_OBJ.cs3()) || (self.factions === "R" && offsetY >= CONST_OBJ.cs4() && offsetY <= CONST_OBJ.bh)) {
-                drawCanPlacedTag(c, {
+                get({
                     x: offsetX, y: offsetY
                 }, self, direction, {
                     x: palisadeX, y: palisadeY
@@ -544,7 +689,7 @@ function drawXS(c, self, x, y, direction, cell) {
     } else {
         if (offsetX >= (CONST_OBJ.ls2()) && offsetX <= (CONST_OBJ.bw - (CONST_OBJ.ls2()))) {
             if ((self.factions === "B" && offsetY >= 0 && offsetY <= (CONST_OBJ.cs2())) || (self.factions === "R" && offsetY >= (CONST_OBJ.bh - (CONST_OBJ.cs1())) && offsetY <= CONST_OBJ.bh)) {
-                drawCanPlacedTag(c, {
+                get({
                     x: offsetX, y: offsetY
                 }, self, direction);
             }
@@ -553,19 +698,29 @@ function drawXS(c, self, x, y, direction, cell) {
 
 }
 
-function drawCanPlacedTag(c, offset, self, direction, palisade) {
+function get(offset, self, direction, palisade) {
     let res = palisade === undefined || !findCPByXY(palisade.x, palisade.y);
+    let isGet = false;
     if (res) {
         let cp = findCPByXY(offset.x, offset.y);
-        res = !cp || cp.factions !== self.factions;
-        if (res) {
-            c.save();
-            c.beginPath();
-            c.fillStyle = 'rgba(83,222,248,0.9)';
-            c.arc(offset.x, offset.y, 7, 0, Math.PI * 2);
-            c.fill();
-            c.restore();
+        if (self.type === "P") {
+            if (!self.hasJump) {
+                res = true;
+                self.hasJump = !(!cp);
+                isGet = !cp;
+            } else {
+                res = !cp;
+                isGet = cp && self.factions !== cp.factions;
+            }
+        } else if (self.type === "J") {
+            res = !cp;
+            isGet = res || cp.factions !== self.factions;
+        } else {
+            res = false;
+            isGet = true;
+        }
 
+        if (isGet) {
             canPlaced.push({
                 x: offset.x, y: offset.y, r: self.r, direction
             });
@@ -574,81 +729,74 @@ function drawCanPlacedTag(c, offset, self, direction, palisade) {
     return res;
 }
 
-const findCPByXY = (x, y) => {
-    return chessPieceList.find(ele => ele.x === x && ele.y === y);
-}
-
-// chess piece list.
-const chessPieceList = [{
-    name: "bLJ", unitX: 0, unitY: 0, type: "J", text: "車", factions: "B"
+const initChessPieceList = [{
+    name: "bLJ", unitX: 0, unitY: 0, type: "J", text: "車", factions: "B", x: 0, y: 0
 }, {
-    name: "bLM", unitX: 1, unitY: 0, type: "M", text: "馬", factions: "B"
+    name: "bLM", unitX: 1, unitY: 0, type: "M", text: "馬", factions: "B", x: 0, y: 0
 }, {
-    name: "bLX", unitX: 2, unitY: 0, type: "X", text: "象", factions: "B"
+    name: "bLX", unitX: 2, unitY: 0, type: "X", text: "象", factions: "B", x: 0, y: 0
 }, {
-    name: "bLS", unitX: 3, unitY: 0, type: "S", text: "士", factions: "B"
+    name: "bLS", unitX: 3, unitY: 0, type: "S", text: "士", factions: "B", x: 0, y: 0
 }, {
-    name: "bH", unitX: 4, unitY: 0, type: "H", text: "将", factions: "B"
+    name: "bH", unitX: 4, unitY: 0, type: "H", text: "将", factions: "B", x: 0, y: 0
 }, {
-    name: "bRS", unitX: 5, unitY: 0, type: "S", text: "士", factions: "B"
+    name: "bRS", unitX: 5, unitY: 0, type: "S", text: "士", factions: "B", x: 0, y: 0
 }, {
-    name: "bRX", unitX: 6, unitY: 0, type: "X", text: "象", factions: "B"
+    name: "bRX", unitX: 6, unitY: 0, type: "X", text: "象", factions: "B", x: 0, y: 0
 }, {
-    name: "bRM", unitX: 7, unitY: 0, type: "M", text: "馬", factions: "B"
+    name: "bRM", unitX: 7, unitY: 0, type: "M", text: "馬", factions: "B", x: 0, y: 0
 }, {
-    name: "bRJ", unitX: 8, unitY: 0, type: "J", text: "車", factions: "B"
+    name: "bRJ", unitX: 8, unitY: 0, type: "J", text: "車", factions: "B", x: 0, y: 0
 }, {
-    name: "bLP", unitX: 1, unitY: 2, type: "P", text: "包", factions: "B"
+    name: "bLP", unitX: 1, unitY: 2, type: "P", text: "包", factions: "B", x: 0, y: 0
 }, {
-    name: "bRP", unitX: 7, unitY: 2, type: "P", text: "包", factions: "B"
+    name: "bRP", unitX: 7, unitY: 2, type: "P", text: "包", factions: "B", x: 0, y: 0
 }, {
-    name: "bZ1", unitX: 0, unitY: 3, type: "Z", text: "卒", factions: "B"
+    name: "bZ1", unitX: 0, unitY: 3, type: "Z", text: "卒", factions: "B", x: 0, y: 0
 }, {
-    name: "bZ2", unitX: 2, unitY: 3, type: "Z", text: "卒", factions: "B"
+    name: "bZ2", unitX: 2, unitY: 3, type: "Z", text: "卒", factions: "B", x: 0, y: 0
 }, {
-    name: "bZ3", unitX: 4, unitY: 3, type: "Z", text: "卒", factions: "B"
+    name: "bZ3", unitX: 4, unitY: 3, type: "Z", text: "卒", factions: "B", x: 0, y: 0
 }, {
-    name: "bZ4", unitX: 6, unitY: 3, type: "Z", text: "卒", factions: "B"
+    name: "bZ4", unitX: 6, unitY: 3, type: "Z", text: "卒", factions: "B", x: 0, y: 0
 }, {
-    name: "bZ5", unitX: 8, unitY: 3, type: "Z", text: "卒", factions: "B"
+    name: "bZ5", unitX: 8, unitY: 3, type: "Z", text: "卒", factions: "B", x: 0, y: 0
 }, {
-    name: "rLJ", unitX: 0, unitY: 9, type: "J", text: "俥", factions: "R"
+    name: "rLJ", unitX: 0, unitY: 9, type: "J", text: "俥", factions: "R", x: 0, y: 0
 }, {
-    name: "rLM", unitX: 1, unitY: 9, type: "M", text: "傌", factions: "R"
+    name: "rLM", unitX: 1, unitY: 9, type: "M", text: "傌", factions: "R", x: 0, y: 0
 }, {
-    name: "rLX", unitX: 2, unitY: 9, type: "X", text: "相", factions: "R"
+    name: "rLX", unitX: 2, unitY: 9, type: "X", text: "相", factions: "R", x: 0, y: 0
 }, {
-    name: "rLS", unitX: 3, unitY: 9, type: "S", text: "仕", factions: "R"
+    name: "rLS", unitX: 3, unitY: 9, type: "S", text: "仕", factions: "R", x: 0, y: 0
 }, {
-    name: "rH", unitX: 4, unitY: 9, type: "H", text: "帥", factions: "R"
+    name: "rH", unitX: 4, unitY: 9, type: "H", text: "帥", factions: "R", x: 0, y: 0
 }, {
-    name: "rRS", unitX: 5, unitY: 9, type: "S", text: "仕", factions: "R"
+    name: "rRS", unitX: 5, unitY: 9, type: "S", text: "仕", factions: "R", x: 0, y: 0
 }, {
-    name: "rRX", unitX: 6, unitY: 9, type: "X", text: "相", factions: "R"
+    name: "rRX", unitX: 6, unitY: 9, type: "X", text: "相", factions: "R", x: 0, y: 0
 }, {
-    name: "rRM", unitX: 7, unitY: 9, type: "M", text: "傌", factions: "R"
+    name: "rRM", unitX: 7, unitY: 9, type: "M", text: "傌", factions: "R", x: 0, y: 0
 }, {
-    name: "rRJ", unitX: 8, unitY: 9, type: "J", text: "俥", factions: "R"
+    name: "rRJ", unitX: 8, unitY: 9, type: "J", text: "俥", factions: "R", x: 0, y: 0
 }, {
-    name: "rLP", unitX: 1, unitY: 7, type: "P", text: "炮", factions: "R"
+    name: "rLP", unitX: 1, unitY: 7, type: "P", text: "炮", factions: "R", x: 0, y: 0
 }, {
-    name: "rRP", unitX: 7, unitY: 7, type: "P", text: "炮", factions: "R"
+    name: "rRP", unitX: 7, unitY: 7, type: "P", text: "炮", factions: "R", x: 0, y: 0
 }, {
-    name: "rZ1", unitX: 0, unitY: 6, type: "Z", text: "兵", factions: "R"
+    name: "rZ1", unitX: 0, unitY: 6, type: "Z", text: "兵", factions: "R", x: 0, y: 0
 }, {
-    name: "rZ2", unitX: 2, unitY: 6, type: "Z", text: "兵", factions: "R"
+    name: "rZ2", unitX: 2, unitY: 6, type: "Z", text: "兵", factions: "R", x: 0, y: 0
 }, {
-    name: "rZ3", unitX: 4, unitY: 6, type: "Z", text: "兵", factions: "R"
+    name: "rZ3", unitX: 4, unitY: 6, type: "Z", text: "兵", factions: "R", x: 0, y: 0
 }, {
-    name: "rZ4", unitX: 6, unitY: 6, type: "Z", text: "兵", factions: "R"
+    name: "rZ4", unitX: 6, unitY: 6, type: "Z", text: "兵", factions: "R", x: 0, y: 0
 }, {
-    name: "rZ5", unitX: 8, unitY: 6, type: "Z", text: "兵", factions: "R"
+    name: "rZ5", unitX: 8, unitY: 6, type: "Z", text: "兵", factions: "R", x: 0, y: 0
 }];
 
-for (let i = 0; i < chessPieceList.length; i++) {
-    let ele = chessPieceList[i];
-    ele.x = 0;
-    ele.y = 0;
+for (let i = 0; i < initChessPieceList.length; i++) {
+    let ele = initChessPieceList[i];
     ele.r = 17;
     ele.shadowOffsetX = 2;
     ele.shadowOffsetY = 2;
@@ -656,21 +804,4 @@ for (let i = 0; i < chessPieceList.length; i++) {
     ele.backgroundColor = "rgb(242, 197, 92)";
     ele.shadowColor = "rgba(0,0,0,0.75)";
     ele.active = false;
-    ele.click = (c) => {
-        drawChessPieceList(c, chessPieceList);
-        let activeEle = chessPieceList.find(e => e.active === true && e.name !== ele.name);
-        if (activeEle) {
-            activeEle.active = false;
-        }
-
-        if (!ele.active) {
-            drawCanPlaced(c, ele);
-        } else {
-            canPlaced = [];
-        }
-        ele.active = !ele.active;
-    }
-    ele.draw = (c) => {
-        drawChessPiece(c, ele);
-    }
 }
