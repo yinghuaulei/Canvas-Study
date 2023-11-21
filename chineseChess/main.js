@@ -35,11 +35,45 @@ let ccUiCtx;
 let ccUiAnimation;
 let uiStartY, uiText, uiTimeOut;
 
+window.onload = () => {
+    const ccBackgroundCanvas = document.getElementById("cc_background");
+    const ccBKCtx = ccBackgroundCanvas.getContext("2d");
+
+    drawCheckerboard(ccBKCtx, ccBackgroundCanvas.width, ccBackgroundCanvas.height);
+
+    const ccGameCanvas = document.getElementById("cc_game");
+    ccGameCtx = ccGameCanvas.getContext("2d");
+    ccGameCtx.translate(CONST_OBJ.bx, CONST_OBJ.by);
+
+    const ccUiCanvas = document.getElementById("cc_ui");
+    ccUiCtx = ccUiCanvas.getContext("2d");
+    ccUiCtx.translate(CONST_OBJ.bx, CONST_OBJ.by);
+
+    reStart();
+
+    window.addEventListener("click", (e) => {
+        if (!inAnimation) {
+            let x = e.offsetX - CONST_OBJ.bx;
+            let y = e.offsetY - CONST_OBJ.by
+            const element = chessPieceList.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
+            if (element && element.click && element.factions === actor) element.click(ccGameCtx);
+
+            confirmPlaced = canPlaced.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
+            if (confirmPlaced) {
+                animation = window.requestAnimationFrame(offsetChessPiece);
+                inAnimation = true;
+            }
+        }
+    });
+}
+
 function reStart() {
     deadPieceList = [];
     isCheckmate = false;
     gameOver = false;
     chessPieceList = [];
+    ccUiCtx.clearRect(0, 0, CONST_OBJ.bw, CONST_OBJ.bh);
+
     for (let i = 0; i < initChessPieceList.length; i++) {
         chessPieceList.push(JSON.parse(JSON.stringify(initChessPieceList[i])));
     }
@@ -48,6 +82,7 @@ function reStart() {
         let ele = chessPieceList[i];
         ele.click = (c) => {
             drawChessPieceList(c, chessPieceList);
+            uiText = "";
 
             let activeEle = chessPieceList.find(e => e.active === true && e.name !== ele.name);
             if (activeEle) {
@@ -75,41 +110,8 @@ function reStart() {
     drawChessPieceList(ccGameCtx, chessPieceList);
 
     actor = "R";
-    $("#cc_actor").text(actor === "R" ? "红棋" : "黑棋");
+    document.getElementById("cc_actor").innerText = "红棋";
 }
-
-$(() => {
-    const ccBackgroundCanvas = document.getElementById("cc_background");
-    const ccBKCtx = ccBackgroundCanvas.getContext("2d");
-
-
-    drawCheckerboard(ccBKCtx, ccBackgroundCanvas.width, ccBackgroundCanvas.height);
-
-    const ccGameCanvas = document.getElementById("cc_game");
-    ccGameCtx = ccGameCanvas.getContext("2d");
-    ccGameCtx.translate(CONST_OBJ.bx, CONST_OBJ.by);
-
-    reStart();
-
-    const ccUiCanvas = document.getElementById("cc_ui");
-    ccUiCtx = ccUiCanvas.getContext("2d");
-    ccUiCtx.translate(CONST_OBJ.bx, CONST_OBJ.by);
-
-    window.addEventListener("click", (e) => {
-        if (!inAnimation) {
-            let x = e.offsetX - CONST_OBJ.bx;
-            let y = e.offsetY - CONST_OBJ.by
-            const element = chessPieceList.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
-            if (element && element.click && element.factions === actor) element.click(ccGameCtx);
-
-            confirmPlaced = canPlaced.find(ele => x >= ele.x - ele.r && x <= ele.x + ele.r && y >= ele.y - ele.r && y <= ele.y + ele.r);
-            if (confirmPlaced) {
-                animation = window.requestAnimationFrame(offsetChessPiece);
-                inAnimation = true;
-            }
-        }
-    });
-});
 
 /**
  * draw chess piece.
@@ -410,7 +412,6 @@ function offsetChessPiece() {
                 } else {
                     deadPieceList.push(deadPiece);
                     chessPieceList = chessPieceList.filter(e => e.name !== deadPiece.name);
-
                     uiText = "吃";
                 }
             }
@@ -418,7 +419,7 @@ function offsetChessPiece() {
             if (!gameOver) {
                 checkmate();
                 actor = actor !== "R" ? "R" : "B";
-                $("#cc_actor").text(actor === "R" ? "红棋" : "黑棋");
+                document.getElementById("cc_actor").innerText = actor === "R" ? "红棋" : "黑棋";
             }
 
             if (uiText) {
@@ -452,10 +453,11 @@ function drawAFX() {
     if (uiStartY <= CONST_OBJ.bh / 2) {
         uiStartY = CONST_OBJ.bh / 2;
         window.cancelAnimationFrame(ccUiAnimation);
-        uiTimeOut = setTimeout(() => {
-            uiText = "";
-            ccUiCtx.clearRect(0, 0, CONST_OBJ.bw, CONST_OBJ.bh);
-        }, 1000);
+        if (!gameOver) {
+            uiTimeOut = setTimeout(() => {
+                ccUiCtx.clearRect(0, 0, CONST_OBJ.bw, CONST_OBJ.bh);
+            }, 1000);
+        }
     } else {
         uiStartY -= 2;
 
@@ -506,12 +508,9 @@ const drawChessPiece = (c, self) => {
     c.restore();
 }
 
-
 const findCPByXY = (x, y) => {
     return chessPieceList.find(ele => ele.x === x && ele.y === y);
 }
-
-
 
 function getCanPlaced(self) {
     let arr;
@@ -748,9 +747,9 @@ const initChessPieceList = [{
 }, {
     name: "bRJ", unitX: 8, unitY: 0, type: "J", text: "車", factions: "B", x: 0, y: 0
 }, {
-    name: "bLP", unitX: 1, unitY: 2, type: "P", text: "包", factions: "B", x: 0, y: 0
+    name: "bLP", unitX: 1, unitY: 2, type: "P", text: "砲", factions: "B", x: 0, y: 0
 }, {
-    name: "bRP", unitX: 7, unitY: 2, type: "P", text: "包", factions: "B", x: 0, y: 0
+    name: "bRP", unitX: 7, unitY: 2, type: "P", text: "砲", factions: "B", x: 0, y: 0
 }, {
     name: "bZ1", unitX: 0, unitY: 3, type: "Z", text: "卒", factions: "B", x: 0, y: 0
 }, {
