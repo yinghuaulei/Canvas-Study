@@ -1,0 +1,31 @@
+body {
+    background-color: #222222;
+}
+
+canvas {
+    position: absolute;
+}
+
+#bg_npc {
+    z-index: 1;
+}
+
+#bg_ball {
+    z-index: 2;
+}
+
+.btn_start {
+    position: absolute;
+    text-align: center;
+    width: 1900px;
+    height: 935px;
+    z-index: 3;
+}
+
+.btn_start input {
+    margin-top: 450px;
+    background-color: rgba(150,221,255,0.8);
+    border-color: rgba(150,221,255,0.6);
+    width: 80px;
+    height: 30px;
+}
